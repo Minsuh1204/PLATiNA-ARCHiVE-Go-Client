@@ -12,7 +12,7 @@ import (
 
 const baseURL = "https://www.platina-archive.app"
 
-func FetchArchive(b64APIKey string) {
+func FetchArchive(b64APIKey string) ([]Archive, *APIError) {
 	url := baseURL + "/api/v2/get_archive"
 	client := &http.Client{}
 	req, err := http.NewRequest("POST", url, nil)
@@ -25,6 +25,28 @@ func FetchArchive(b64APIKey string) {
 		log.Fatalf("Error doing request: %v", err)
 	}
 	defer res.Body.Close()
+	bodyBytes, err := io.ReadAll(res.Body)
+	if err != nil {
+		log.Fatalf("Error reading response body: %v", err)
+	}
+	if res.StatusCode != http.StatusOK {
+		bodyBytes, err := io.ReadAll(res.Body)
+		if err != nil {
+			log.Fatalf("Error reading response body: %v", err)
+		}
+		var apiError APIError
+		err = json.Unmarshal(bodyBytes, &apiError)
+		if err != nil {
+			log.Fatalf("Error parsing JSON: %v", err)
+		}
+		return nil, &apiError
+	}
+	var archives []Archive
+	err = json.Unmarshal(bodyBytes, &archives)
+	if err != nil {
+		log.Fatalf("Error parsing JSON: %v", err)
+	}
+	return archives, nil
 }
 
 func FetchClientVersion() ClientVersion {
@@ -115,6 +137,42 @@ func FetchSongs(cache *Cache) ([]Song, bool) {
 	return songs, true
 }
 
+func Login(name string, password string) (*LoginResult, *APIError) {
+	url := baseURL + "/api/v1/login"
+	data := map[string]string{"name": name, "password": password}
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		log.Fatalf("Error composing JSOM: %v", err)
+	}
+	res, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		log.Fatalf("Error doing request: %v", err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		bodyBytes, err := io.ReadAll(res.Body)
+		if err != nil {
+			log.Fatalf("Error reading response body: %v", err)
+		}
+		var apiError APIError
+		err = json.Unmarshal(bodyBytes, &apiError)
+		if err != nil {
+			log.Fatalf("Error parsing JSON: %v", err)
+		}
+		return nil, &apiError
+	}
+	bodyBytes, err := io.ReadAll(res.Body)
+	if err != nil {
+		log.Fatalf("Error reading response body: %v", err)
+	}
+	var result LoginResult
+	err = json.Unmarshal(bodyBytes, &result)
+	if err != nil {
+		log.Fatalf("Error parsing JSON: %v", err)
+	}
+	return &result, nil
+}
+
 func Register(name string, password string) (*RegisterResult, *APIError) {
 	url := baseURL + "/api/v1/register"
 	data := map[string]string{"name": name, "password": password}
@@ -143,12 +201,12 @@ func Register(name string, password string) (*RegisterResult, *APIError) {
 	if err != nil {
 		log.Fatalf("Error reading response body: %v", err)
 	}
-	var result RegisterResult
-	err = json.Unmarshal(bodyBytes, &result)
+	var info RegisterResult
+	err = json.Unmarshal(bodyBytes, &info)
 	if err != nil {
 		log.Fatalf("Error parsing JSON: %v", err)
 	}
-	return &result, nil
+	return &info, nil
 }
 
 func loadCache(cachePath string) (Cache, error) {

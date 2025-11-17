@@ -31,6 +31,11 @@ type ClientVersion struct {
 	Patch int `json:"patch"`
 }
 
+type LoginResult struct {
+	Message string `json:"msg"`
+	APIKey  string `json:"key"`
+}
+
 type Pattern struct {
 	SongID     int    `json:"songID"`
 	Line       int    `json:"line"`
