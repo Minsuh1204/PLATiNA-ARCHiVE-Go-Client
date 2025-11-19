@@ -1,4 +1,4 @@
-package platinaarchivegoclient
+package client
 
 import (
 	"bytes"

@@ -1,4 +1,6 @@
-package platinaarchivegoclient
+package client
+
+import "image"
 
 // APIError represents an error returned by the API.
 type APIError struct {
@@ -8,6 +10,18 @@ type APIError struct {
 // Error returns the error message.
 func (e *APIError) Error() string {
 	return e.Message
+}
+
+type AnalysisReport struct {
+	SongObject    Song
+	PatternObject Pattern
+	JacketImage   image.Image
+	Judge         float64
+	Score         float64
+	Patch         float64
+	Rank          string
+	FullCombo     bool
+	MaxPatch      bool
 }
 
 // Archive represents a user's play record for a song.
