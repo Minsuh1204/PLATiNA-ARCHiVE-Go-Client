@@ -2,6 +2,7 @@ package platinaarchivegoclient
 
 import (
 	"encoding/base64"
+	"errors"
 	"log"
 	"os"
 	"reflect"
@@ -28,9 +29,32 @@ func TestFetchArchive(t *testing.T) {
 	}
 }
 
+func TestFetchArchiveInvalidAPIKey(t *testing.T) {
+	archives, apiErr := FetchArchive("invalidAPIKey")
+	expectedError := APIError{"API key is not encoded correctly"}
+	if archives != nil {
+		t.Errorf("FetchArchive function does not return nil when API key is invalid: %v", archives)
+	}
+	if apiErr == nil {
+		t.Error("FetchArchive function does not return error when API key is invalid")
+	} else {
+		var ae *APIError
+		if errors.As(apiErr, &ae) {
+			if expectedError.Message != ae.Message {
+				t.Errorf("FetchArchive function does not return expected error: %v", ae)
+			}
+		} else {
+			t.Errorf("FetchArchive returned unexpected error type: %v", apiErr)
+		}
+	}
+}
+
 func TestFetchClientVersion(t *testing.T) {
 	expected := ClientVersion{0, 3, 4}
-	actual := FetchClientVersion()
+	actual, err := FetchClientVersion()
+	if err != nil {
+		t.Errorf("FetchClientVersion returned error: %v", err)
+	}
 	if expected != actual {
 		t.Errorf("Version doesn't match, expected: %v, actual: %v", expected, actual)
 	}
@@ -39,7 +63,10 @@ func TestFetchClientVersion(t *testing.T) {
 func TestFetchPatternsNoNeedsUpdate(t *testing.T) {
 	testPattern := Pattern{0, 4, "EASY", 20, "#Endeavy"}
 	cache := Cache{"2025-11-14", "2025-11-06", []Song{}, []Pattern{testPattern}}
-	patterns, isUpdated := FetchPatterns(&cache)
+	patterns, isUpdated, err := FetchPatterns(&cache)
+	if err != nil {
+		t.Errorf("FetchPatterns returned error: %v", err)
+	}
 	if !reflect.DeepEqual(cache.Patterns, patterns) {
 		t.Errorf("FetchPatterns function did not return cached patterns: %v", patterns)
 	}
@@ -50,7 +77,10 @@ func TestFetchPatternsNoNeedsUpdate(t *testing.T) {
 
 func TestFetchPatternsNeedsUpdate(t *testing.T) {
 	cache := Cache{"2025-11-01", "2025-11-01", []Song{}, []Pattern{}}
-	patterns, isUpdated := FetchPatterns(&cache)
+	patterns, isUpdated, err := FetchPatterns(&cache)
+	if err != nil {
+		t.Errorf("FetchPatterns returned error: %v", err)
+	}
 	if len(patterns) < 1069 { // Number of songs in DB
 		t.Errorf("FetchPatterns function did not give updated patterns list: %v", patterns)
 	}
@@ -62,7 +92,10 @@ func TestFetchPatternsNeedsUpdate(t *testing.T) {
 func TestFetchSongsNoNeedsUpdate(t *testing.T) {
 	testSong := Song{0, "example", "artist", "120", "someDLC", "pHash", "plusPHash"}
 	cache := Cache{"2025-11-14", "2025-11-14", []Song{testSong}, []Pattern{}}
-	songs, isUpdated := FetchSongs(&cache)
+	songs, isUpdated, err := FetchSongs(&cache)
+	if err != nil {
+		t.Errorf("FetchSongs returned error: %v", err)
+	}
 	if !reflect.DeepEqual(cache.Songs, songs) {
 		t.Errorf("FetchSongs function did not return cached songs: %v", songs)
 	}
@@ -73,7 +106,10 @@ func TestFetchSongsNoNeedsUpdate(t *testing.T) {
 
 func TestFetchSongsNeedsUpdate(t *testing.T) {
 	cache := Cache{"2025-11-01", "2025-11-14", []Song{}, []Pattern{}}
-	songs, isUpdated := FetchSongs(&cache)
+	songs, isUpdated, err := FetchSongs(&cache)
+	if err != nil {
+		t.Errorf("FetchSongs returned error: %v", err)
+	}
 	if len(songs) < 111 { // Number of songs in DB
 		t.Errorf("FetchSongs function did not give updated songs list: %v", songs)
 	}
@@ -85,8 +121,17 @@ func TestFetchSongsNeedsUpdate(t *testing.T) {
 func TestRegisterNameAlreadyUsed(t *testing.T) {
 	expectedError := APIError{"Name already taken"}
 	result, err := Register("Endeavy", "password")
-	if expectedError != *err {
-		t.Errorf("Register function does not return error when name is taken: %v", *err)
+	if err == nil {
+		t.Error("Register function does not return error when name is taken")
+	} else {
+		var ae *APIError
+		if errors.As(err, &ae) {
+			if expectedError.Message != ae.Message {
+				t.Errorf("Register function does not return expected error: %v", ae)
+			}
+		} else {
+			t.Errorf("Register returned unexpected error type: %v", err)
+		}
 	}
 	if result != nil {
 		t.Errorf("Register functinon does not return nil when name is taken: %v", *result)
@@ -96,7 +141,7 @@ func TestRegisterNameAlreadyUsed(t *testing.T) {
 func TestRegisterSuccess(t *testing.T) {
 	result, err := Register("테스트", "test")
 	if err != nil {
-		t.Errorf("Register function return error when register is successful: %v", *err)
+		t.Errorf("Register function return error when register is successful: %v", err)
 	}
 	if result.Name != "테스트" {
 		t.Errorf("Register function return wrong name: %v", &result.Name)
@@ -109,7 +154,7 @@ func TestRegisterSuccess(t *testing.T) {
 func TestLoginSuccess(t *testing.T) {
 	result, err := Login("테스트", "test")
 	if err != nil {
-		t.Errorf("Login function return error when login is successful: %v", *err)
+		t.Errorf("Login function return error when login is successful: %v", err)
 	}
 	if result.Message != "success" {
 		t.Errorf("Login function return message not success: %v", result.Message)
@@ -122,10 +167,99 @@ func TestLoginSuccess(t *testing.T) {
 func TestLoginFail(t *testing.T) {
 	expectedError := APIError{"로그인 실패"}
 	result, err := Login("테스트", "wrong")
-	if expectedError != *err {
-		t.Errorf("Login function does not return expected error: %v", *err)
+	if err == nil {
+		t.Error("Login function does not return error when login is fail")
+	} else {
+		var ae *APIError
+		if errors.As(err, &ae) {
+			if expectedError.Message != ae.Message {
+				t.Errorf("Login function does not return expected error: %v", ae)
+			}
+		} else {
+			t.Errorf("Login returned unexpected error type: %v", err)
+		}
 	}
 	if result != nil {
 		t.Errorf("Login function does not return nil when login is fail: %v", *result)
+	}
+}
+
+func TestUpdateArchiveSuccess(t *testing.T) {
+	result, _ := Login("테스트", "test")
+	base64APIKey := base64.StdEncoding.EncodeToString([]byte(result.APIKey))
+	testArchive := Archive{"테스트", 1, 4, "EASY", 7, 99.1, 100, 360, "2025-11-18", true, false}
+	isUpdated, err := UpdateArchive(base64APIKey, testArchive)
+	if err != nil {
+		t.Errorf("UpdateArchive function return error when update is successful: %v", err)
+	}
+	if !isUpdated {
+		t.Error("UpdateArchive function returned false for updated archive")
+	}
+}
+
+func TestUpdateArchiveInvalidAPIKey(t *testing.T) {
+	testArchive := Archive{"테스트", 1, 4, "EASY", 7, 99.1, 100, 360, "2025-11-18", true, false}
+	expectedError := APIError{"API key is not encoded correctly"}
+	isUpdated, err := UpdateArchive("invalidAPIKey", testArchive)
+	if err == nil {
+		t.Error("UpdateArchive function does not return error when API key is invalid")
+	} else {
+		var ae *APIError
+		if errors.As(err, &ae) {
+			if expectedError.Message != ae.Message {
+				t.Errorf("UpdateArchive function does not return expected error: %v", ae)
+			}
+		} else {
+			t.Errorf("UpdateArchive returned unexpected error type: %v", err)
+		}
+	}
+	if isUpdated {
+		t.Error("UpdateArchive function returned true for updated archive")
+	}
+}
+
+func TestUpdateArchiveInvalidSongID(t *testing.T) {
+	result, _ := Login("테스트", "test")
+	base64APIKey := base64.StdEncoding.EncodeToString([]byte(result.APIKey))
+	testArchive := Archive{"테스트", -99, 4, "EASY", 7, 99.1, 100, 360, "2025-11-18", true, false}
+	expectedError := APIError{"Unknown song ID"}
+	isUpdated, err := UpdateArchive(base64APIKey, testArchive)
+	if err == nil {
+		t.Error("UpdateArchive function does not return error when song ID is invalid")
+	} else {
+		var ae *APIError
+		if errors.As(err, &ae) {
+			if expectedError.Message != ae.Message {
+				t.Errorf("UpdateArchive function does not return expected error: %v", ae)
+			}
+		} else {
+			t.Errorf("UpdateArchive returned unexpected error type: %v", err)
+		}
+	}
+	if isUpdated {
+		t.Error("UpdateArchive function returned true for updated archive")
+	}
+}
+
+func TestUpdateArchiveInvalidLevel(t *testing.T) {
+	result, _ := Login("테스트", "test")
+	base64APIKey := base64.StdEncoding.EncodeToString([]byte(result.APIKey))
+	testArchive := Archive{"테스트", 1, 4, "EASY", -99, 99.1, 100, 360, "2025-11-18", true, false}
+	expectedError := APIError{"Invalid level value"}
+	isUpdated, err := UpdateArchive(base64APIKey, testArchive)
+	if err == nil {
+		t.Error("UpdateArchive function does not return error when level is invalid")
+	} else {
+		var ae *APIError
+		if errors.As(err, &ae) {
+			if expectedError.Message != ae.Message {
+				t.Errorf("UpdateArchive function does not return expected error: %v", ae)
+			}
+		} else {
+			t.Errorf("UpdateArchive returned unexpected error type: %v", err)
+		}
+	}
+	if isUpdated {
+		t.Error("UpdateArchive function returned true for updated archive")
 	}
 }

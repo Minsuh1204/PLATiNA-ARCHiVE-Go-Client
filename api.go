@@ -3,8 +3,7 @@ package platinaarchivegoclient
 import (
 	"bytes"
 	"encoding/json"
-	"io"
-	"log"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -12,226 +11,243 @@ import (
 
 const baseURL = "https://www.platina-archive.app"
 
-func FetchArchive(b64APIKey string) ([]Archive, *APIError) {
+// FetchArchive retrieves the user's archive (play history) from the server.
+// It requires a base64 encoded API key for authentication.
+// Returns a slice of Archive structs or an error if the request fails.
+func FetchArchive(b64APIKey string) ([]Archive, error) {
 	url := baseURL + "/api/v2/get_archive"
-	client := &http.Client{}
 	req, err := http.NewRequest("POST", url, nil)
 	if err != nil {
-		log.Fatalf("Error making a new request: %v", err)
+		return nil, fmt.Errorf("error making new request: %w", err)
 	}
 	req.Header.Add("X-API-Key", b64APIKey)
+
+	client := &http.Client{}
 	res, err := client.Do(req)
 	if err != nil {
-		log.Fatalf("Error doing request: %v", err)
+		return nil, fmt.Errorf("error doing request: %w", err)
 	}
 	defer res.Body.Close()
-	bodyBytes, err := io.ReadAll(res.Body)
-	if err != nil {
-		log.Fatalf("Error reading response body: %v", err)
-	}
+
 	if res.StatusCode != http.StatusOK {
-		bodyBytes, err := io.ReadAll(res.Body)
-		if err != nil {
-			log.Fatalf("Error reading response body: %v", err)
-		}
 		var apiError APIError
-		err = json.Unmarshal(bodyBytes, &apiError)
-		if err != nil {
-			log.Fatalf("Error parsing JSON: %v", err)
+		if err := json.NewDecoder(res.Body).Decode(&apiError); err != nil {
+			return nil, fmt.Errorf("error parsing JSON error response: %w", err)
 		}
 		return nil, &apiError
 	}
+
 	var archives []Archive
-	err = json.Unmarshal(bodyBytes, &archives)
-	if err != nil {
-		log.Fatalf("Error parsing JSON: %v", err)
+	if err := json.NewDecoder(res.Body).Decode(&archives); err != nil {
+		return nil, fmt.Errorf("error parsing JSON: %w", err)
 	}
 	return archives, nil
 }
 
-func FetchClientVersion() ClientVersion {
+// FetchClientVersion retrieves the current client version from the server.
+// Returns a ClientVersion struct or an error if the request fails.
+func FetchClientVersion() (ClientVersion, error) {
 	url := baseURL + "/api/v1/client_version"
 	res, err := http.Get(url)
 	if err != nil {
-		log.Fatalf("Error making request: %v", err)
+		return ClientVersion{}, fmt.Errorf("error making request: %w", err)
 	}
 	defer res.Body.Close()
-	bodyBytes, err := io.ReadAll(res.Body)
-	if err != nil {
-		log.Fatalf("Error reading response body: %v", err)
-	}
+
 	if res.StatusCode != http.StatusOK {
-		log.Fatalf("API request failed with status code %d. Response: %s", res.StatusCode, bodyBytes)
+		return ClientVersion{}, fmt.Errorf("API request failed with status code %d", res.StatusCode)
 	}
+
 	var version ClientVersion
-	err = json.Unmarshal(bodyBytes, &version)
-	if err != nil {
-		log.Fatalf("Error parsing JSON: %v", err)
+	if err := json.NewDecoder(res.Body).Decode(&version); err != nil {
+		return ClientVersion{}, fmt.Errorf("error parsing JSON: %w", err)
 	}
-	return version
+	return version, nil
 }
 
-func FetchPatterns(cache *Cache) ([]Pattern, bool) {
+// FetchPatterns retrieves the list of patterns from the server.
+// It uses the provided cache to check for updates using the If-Modified-Since header.
+// Returns a slice of Pattern structs, a boolean indicating if the list was updated, or an error.
+func FetchPatterns(cache *Cache) ([]Pattern, bool, error) {
 	url := baseURL + "/api/v1/platina_patterns"
-	client := &http.Client{}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		log.Fatalf("Error making a new request: %v", err)
+		return nil, false, fmt.Errorf("error making new request: %w", err)
 	}
 	req.Header.Add("If-Modified-Since", cache.PatternsLastModified)
+
+	client := &http.Client{}
 	res, err := client.Do(req)
 	if err != nil {
-		log.Fatalf("Error doing request: %v", err)
+		return nil, false, fmt.Errorf("error doing request: %w", err)
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode == http.StatusNotModified {
-		return cache.Patterns, false
+		return cache.Patterns, false, nil
 	}
 	if res.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(res.Body)
-		log.Fatalf("API request failed with status code %d. Response: %s", res.StatusCode, bodyBytes)
+		return nil, false, fmt.Errorf("API request failed with status code %d", res.StatusCode)
 	}
-	bodyBytes, err := io.ReadAll(res.Body)
-	if err != nil {
-		log.Fatalf("Error reading response body: %v", err)
-	}
+
 	var patterns []Pattern
-	err = json.Unmarshal(bodyBytes, &patterns)
-	if err != nil {
-		log.Fatalf("Error parsing JSON: %v", err)
+	if err := json.NewDecoder(res.Body).Decode(&patterns); err != nil {
+		return nil, false, fmt.Errorf("error parsing JSON: %w", err)
 	}
-	return patterns, true
+	return patterns, true, nil
 }
 
-func FetchSongs(cache *Cache) ([]Song, bool) {
+// FetchSongs retrieves the list of songs from the server.
+// It uses the provided cache to check for updates using the If-Modified-Since header.
+// Returns a slice of Song structs, a boolean indicating if the list was updated, or an error.
+func FetchSongs(cache *Cache) ([]Song, bool, error) {
 	url := baseURL + "/api/v1/platina_songs"
-	client := &http.Client{}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		log.Fatalf("Error making a new request: %v", err)
+		return nil, false, fmt.Errorf("error making new request: %w", err)
 	}
 	req.Header.Add("If-Modified-Since", cache.SongsLastModified)
+
+	client := &http.Client{}
 	res, err := client.Do(req)
 	if err != nil {
-		log.Fatalf("Error doing request: %v", err)
+		return nil, false, fmt.Errorf("error doing request: %w", err)
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode == http.StatusNotModified {
-		return cache.Songs, false
+		return cache.Songs, false, nil
 	}
 	if res.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(res.Body)
-		log.Fatalf("API request failed with status code %d. Response: %s", res.StatusCode, bodyBytes)
+		return nil, false, fmt.Errorf("API request failed with status code %d", res.StatusCode)
 	}
-	bodyBytes, err := io.ReadAll(res.Body)
-	if err != nil {
-		log.Fatalf("Error reading response body: %v", err)
-	}
+
 	var songs []Song
-	err = json.Unmarshal(bodyBytes, &songs)
-	if err != nil {
-		log.Fatalf("Error parsing JSON: %v", err)
+	if err := json.NewDecoder(res.Body).Decode(&songs); err != nil {
+		return nil, false, fmt.Errorf("error parsing JSON: %w", err)
 	}
-	return songs, true
+	return songs, true, nil
 }
 
-func Login(name string, password string) (*LoginResult, *APIError) {
+// Login authenticates a user with the given name and password.
+// Returns a LoginResult struct containing the API key or an error if login fails.
+func Login(name string, password string) (*LoginResult, error) {
 	url := baseURL + "/api/v1/login"
 	data := map[string]string{"name": name, "password": password}
 	jsonData, err := json.Marshal(data)
 	if err != nil {
-		log.Fatalf("Error composing JSOM: %v", err)
+		return nil, fmt.Errorf("error composing JSON: %w", err)
 	}
+
 	res, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
-		log.Fatalf("Error doing request: %v", err)
+		return nil, fmt.Errorf("error doing request: %w", err)
 	}
 	defer res.Body.Close()
+
 	if res.StatusCode != http.StatusOK {
-		bodyBytes, err := io.ReadAll(res.Body)
-		if err != nil {
-			log.Fatalf("Error reading response body: %v", err)
-		}
 		var apiError APIError
-		err = json.Unmarshal(bodyBytes, &apiError)
-		if err != nil {
-			log.Fatalf("Error parsing JSON: %v", err)
+		if err := json.NewDecoder(res.Body).Decode(&apiError); err != nil {
+			return nil, fmt.Errorf("error parsing JSON error response: %w", err)
 		}
 		return nil, &apiError
 	}
-	bodyBytes, err := io.ReadAll(res.Body)
-	if err != nil {
-		log.Fatalf("Error reading response body: %v", err)
-	}
+
 	var result LoginResult
-	err = json.Unmarshal(bodyBytes, &result)
-	if err != nil {
-		log.Fatalf("Error parsing JSON: %v", err)
+	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("error parsing JSON: %w", err)
 	}
 	return &result, nil
 }
 
-func Register(name string, password string) (*RegisterResult, *APIError) {
+// Register registers a new user with the given name and password.
+// Returns a RegisterResult struct containing the API key or an error if registration fails.
+func Register(name string, password string) (*RegisterResult, error) {
 	url := baseURL + "/api/v1/register"
 	data := map[string]string{"name": name, "password": password}
 	jsonData, err := json.Marshal(data)
 	if err != nil {
-		log.Fatalf("Error composing JSON: %v", err)
+		return nil, fmt.Errorf("error composing JSON: %w", err)
 	}
+
 	res, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
-		log.Fatalf("Error doing request: %v", err)
+		return nil, fmt.Errorf("error doing request: %w", err)
 	}
 	defer res.Body.Close()
+
 	if res.StatusCode != http.StatusOK {
-		bodyBytes, err := io.ReadAll(res.Body)
-		if err != nil {
-			log.Fatalf("Error reading response body: %v", err)
-		}
 		var apiError APIError
-		err = json.Unmarshal(bodyBytes, &apiError)
-		if err != nil {
-			log.Fatalf("Error parsing JSON: %v", err)
+		if err := json.NewDecoder(res.Body).Decode(&apiError); err != nil {
+			return nil, fmt.Errorf("error parsing JSON error response: %w", err)
 		}
 		return nil, &apiError
 	}
-	bodyBytes, err := io.ReadAll(res.Body)
-	if err != nil {
-		log.Fatalf("Error reading response body: %v", err)
-	}
+
 	var info RegisterResult
-	err = json.Unmarshal(bodyBytes, &info)
-	if err != nil {
-		log.Fatalf("Error parsing JSON: %v", err)
+	if err := json.NewDecoder(res.Body).Decode(&info); err != nil {
+		return nil, fmt.Errorf("error parsing JSON: %w", err)
 	}
 	return &info, nil
 }
 
+// UpdateArchive updates the user's archive with a new play record.
+// It requires a base64 encoded API key for authentication.
+// Returns true if the update was successful, or an error if it failed.
+func UpdateArchive(b64APIKey string, archive Archive) (bool, error) {
+	url := baseURL + "/api/v2/update_archive"
+	jsonData, err := json.Marshal(archive)
+	if err != nil {
+		return false, fmt.Errorf("error composing JSON: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return false, fmt.Errorf("error making new request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Add("X-API-Key", b64APIKey)
+
+	client := &http.Client{}
+	res, err := client.Do(req)
+	if err != nil {
+		return false, fmt.Errorf("error doing request: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		var apiError APIError
+		if err := json.NewDecoder(res.Body).Decode(&apiError); err != nil {
+			return false, fmt.Errorf("error parsing JSON error response: %w", err)
+		}
+		return false, &apiError
+	}
+	return true, nil
+}
+
+// loadCache loads the cache from the local file system.
+// Returns a Cache struct or an error if loading fails.
 func loadCache(cachePath string) (Cache, error) {
 	cacheFilePath := filepath.Join(getCacheDirectory(), "cache.json")
 	file, err := os.Open(cacheFilePath)
 	if err != nil {
-		log.Fatalf("Error opening cache file: %v", err)
+		return Cache{}, fmt.Errorf("error opening cache file: %w", err)
 	}
 	defer file.Close()
-	byteValue, err := io.ReadAll(file)
-	if err != nil {
-		log.Fatalf("Error reading the file: %v", err)
-	}
+
 	var cache Cache
-	err = json.Unmarshal(byteValue, &cache)
-	if err != nil {
-		log.Fatalf("Error parsing JSON: %v", err)
+	if err := json.NewDecoder(file).Decode(&cache); err != nil {
+		return Cache{}, fmt.Errorf("error parsing JSON: %w", err)
 	}
 	return cache, nil
 }
 
+// getCacheDirectory returns the directory where the cache is stored.
+// It panics if the user config directory cannot be determined.
 func getCacheDirectory() string {
 	configDir, err := os.UserConfigDir()
 	if err != nil {
-		log.Fatalf("Error loading user config folder: %v", err)
+		panic(fmt.Sprintf("error loading user config folder: %v", err))
 	}
 	return filepath.Join(configDir, "PLATiNA-ARCHiVE")
 }
