@@ -122,7 +122,7 @@ func showLoginDialog(w fyne.Window) {
 		pass := passEntry.Text
 		result, err := client.Login(name, pass)
 		if err != nil {
-			errDialog := dialog.NewError(fmt.Errorf("Login failed: %v", err), w)
+			errDialog := dialog.NewError(fmt.Errorf("login failed: %v", err), w)
 			errDialog.SetOnClosed(func() {
 				showLoginDialog(w)
 			})
@@ -185,9 +185,9 @@ func logMessage(msg string) {
 }
 
 func registerHotkeys() {
-	// keyInsertWin := hotkey.Key(0x2D) // Insert key for Windows
-	keyInsertMac := hotkey.Key0 // Testing key for Mac
-	hk := hotkey.New([]hotkey.Modifier{hotkey.ModOption}, keyInsertMac)
+	keyInsertWin := hotkey.Key(0x2D) // Insert key for Windows
+	// keyInsertMac := hotkey.Key0 // Testing key for Mac
+	hk := hotkey.New([]hotkey.Modifier{hotkey.ModAlt}, keyInsertWin)
 	if err := hk.Register(); err != nil {
 		logMessage(fmt.Sprintf("Failed to register hotkey: %v", err))
 		return

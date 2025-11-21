@@ -2,13 +2,15 @@ module github.com/Minsuh1204/PLATiNA-ARCHiVE-Go-Client
 
 go 1.25.4
 
-require github.com/joho/godotenv v1.5.1
+require (
+	github.com/joho/godotenv v1.5.1
+	github.com/zalando/go-keyring v0.2.6
+	golang.design/x/hotkey v0.4.1
+)
 
 require (
 	al.essio.dev/pkg/shellescape v1.5.1 // indirect
 	github.com/danieljoos/wincred v1.2.2 // indirect
-	github.com/zalando/go-keyring v0.2.6 // indirect
-	golang.design/x/hotkey v0.4.1 // indirect
 )
 
 require (
