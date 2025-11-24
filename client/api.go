@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
 )
 
 const baseURL = "https://www.platina-archive.app"
@@ -223,31 +221,4 @@ func UpdateArchive(b64APIKey string, archive Archive) (bool, error) {
 		return false, &apiError
 	}
 	return true, nil
-}
-
-// loadCache loads the cache from the local file system.
-// Returns a Cache struct or an error if loading fails.
-func loadCache(cachePath string) (Cache, error) {
-	cacheFilePath := filepath.Join(getCacheDirectory(), "cache.json")
-	file, err := os.Open(cacheFilePath)
-	if err != nil {
-		return Cache{}, fmt.Errorf("error opening cache file: %w", err)
-	}
-	defer file.Close()
-
-	var cache Cache
-	if err := json.NewDecoder(file).Decode(&cache); err != nil {
-		return Cache{}, fmt.Errorf("error parsing JSON: %w", err)
-	}
-	return cache, nil
-}
-
-// getCacheDirectory returns the directory where the cache is stored.
-// It panics if the user config directory cannot be determined.
-func getCacheDirectory() string {
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		panic(fmt.Sprintf("error loading user config folder: %v", err))
-	}
-	return filepath.Join(configDir, "PLATiNA-ARCHiVE")
 }

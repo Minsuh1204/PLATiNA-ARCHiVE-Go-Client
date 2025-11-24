@@ -4,8 +4,8 @@ reference:
 
 speedWidgetPHash: c0c73d38273ed2c3
 
-ROIConfig:
-  1920x1080:
+configs:
+  - screenSize: 1920x1080
     select:
       speedWidget: [30, 908, 119, 932] # to determine if the screen is in select mode
       jacket: [760, 66, 1160, 466]

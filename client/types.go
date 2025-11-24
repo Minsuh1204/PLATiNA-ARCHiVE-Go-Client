@@ -54,6 +54,64 @@ type ClientVersion struct {
 	Patch int `json:"patch"`
 }
 
+type Config struct {
+	Reference        Reference        `yaml:"reference" json:"reference"`
+	SpeedWidgetPHash string           `yaml:"speedWidgetPHash" json:"speedWidgetPHash"`
+	Configs          []ROIConfig      `yaml:"configs" json:"configs"`
+	DifficultyColors DifficultyColors `yaml:"difficultyColors" json:"difficultyColors"`
+	ColorTolerance   int              `yaml:"colorTolerance" json:"colorTolerance"`
+}
+
+type Reference struct {
+	Width  int `yaml:"width" json:"width"`
+	Height int `yaml:"height" json:"height"`
+}
+
+type ROIConfig struct {
+	ScreenSize string          `yaml:"screenSize" json:"screenSize"`
+	Select     SelectROIConfig `yaml:"select" json:"select"`
+	Result     ResultROIConfig `yaml:"result" json:"result"`
+}
+
+type SelectROIConfig struct {
+	SpeedWidget []int `yaml:"speedWidget" json:"speedWidget"`
+	Jacket      []int `yaml:"jacket" json:"jacket"`
+	MajorJudge  []int `yaml:"majorJudge" json:"majorJudge"`
+	MinorJudge  []int `yaml:"minorJudge" json:"minorJudge"`
+	Line        []int `yaml:"line" json:"line"`
+	MajorPatch  []int `yaml:"majorPatch" json:"majorPatch"`
+	MinorPatch  []int `yaml:"minorPatch" json:"minorPatch"`
+	Score       []int `yaml:"score" json:"score"`
+	FullCombo   []int `yaml:"fullCombo" json:"fullCombo"`
+	MaxPatch    []int `yaml:"maxPatch" json:"maxPatch"`
+	Rank        []int `yaml:"rank" json:"rank"`
+}
+
+type ResultROIConfig struct {
+	Jacket      []int `yaml:"jacket" json:"jacket"`
+	Judge       []int `yaml:"judge" json:"judge"`
+	Line        []int `yaml:"line" json:"line"`
+	Level       []int `yaml:"level" json:"level"`
+	Patch       []int `yaml:"patch" json:"patch"`
+	Score       []int `yaml:"score" json:"score"`
+	Rank        []int `yaml:"rank" json:"rank"`
+	NotesArea   []int `yaml:"notesArea" json:"notesArea"`
+	TotalNotes  []int `yaml:"totalNotes" json:"totalNotes"`
+	PerfectHigh []int `yaml:"perfectHigh" json:"perfectHigh"`
+	Perfect     []int `yaml:"perfect" json:"perfect"`
+	Great       []int `yaml:"great" json:"great"`
+	Good        []int `yaml:"good" json:"good"`
+	Miss        []int `yaml:"miss" json:"miss"`
+	Difficulty  []int `yaml:"difficulty" json:"difficulty"`
+}
+
+type DifficultyColors struct {
+	Easy []int `yaml:"easy" json:"easy"`
+	Hard []int `yaml:"hard" json:"hard"`
+	Over []int `yaml:"over" json:"over"`
+	Plus []int `yaml:"plus" json:"plus"`
+}
+
 // LoginResult represents the response from the login API.
 type LoginResult struct {
 	Message string `json:"msg"`

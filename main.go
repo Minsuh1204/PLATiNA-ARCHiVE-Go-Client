@@ -33,6 +33,8 @@ var patchLabel *widget.Label
 var jacketContainer *fyne.Container
 var analyzeButton *widget.Button
 
+var cache *client.Cache
+
 func main() {
 	a := app.New()
 	w := a.NewWindow(fmt.Sprintf("PLATiNA-ARCHiVE v%s", VERSION))
@@ -62,6 +64,8 @@ func main() {
 	w.SetContent(mainContainer)
 
 	go registerHotkeys()
+
+	// Load API key
 	APIKey = client.LoadAPIKey()
 	if APIKey == "" {
 		showWelcomeDialog(w)
