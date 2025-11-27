@@ -44,23 +44,53 @@ func FetchArchive(b64APIKey string) ([]Archive, error) {
 
 // FetchClientVersion retrieves the current client version from the server.
 // Returns a ClientVersion struct or an error if the request fails.
-func FetchClientVersion() (ClientVersion, error) {
+func FetchClientVersion() (Version, error) {
 	url := baseURL + "/api/v1/client_version"
 	res, err := http.Get(url)
 	if err != nil {
-		return ClientVersion{}, fmt.Errorf("error making request: %w", err)
+		return Version{}, fmt.Errorf("error making request: %w", err)
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return ClientVersion{}, fmt.Errorf("API request failed with status code %d", res.StatusCode)
+		return Version{}, fmt.Errorf("API request failed with status code %d", res.StatusCode)
 	}
 
-	var version ClientVersion
+	var version Version
 	if err := json.NewDecoder(res.Body).Decode(&version); err != nil {
-		return ClientVersion{}, fmt.Errorf("error parsing JSON: %w", err)
+		return Version{}, fmt.Errorf("error parsing JSON: %w", err)
 	}
 	return version, nil
+}
+
+func FetchConfig(config *Config) (bool, error) {
+	url := baseURL + "/api/v1/config"
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return false, fmt.Errorf("error making new request: %w", err)
+	}
+	req.Header.Add("If-Modified-Since", config.Version)
+
+	client := &http.Client{}
+	res, err := client.Do(req)
+	if err != nil {
+		return false, fmt.Errorf("error doing request: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode == http.StatusNotModified {
+		return false, nil
+	}
+	if res.StatusCode != http.StatusOK {
+		return false, fmt.Errorf("API request failed with status code %d", res.StatusCode)
+	}
+
+	var newConfig Config
+	if err := json.NewDecoder(res.Body).Decode(&newConfig); err != nil {
+		return false, fmt.Errorf("error parsing JSON: %w", err)
+	}
+	*config = newConfig
+	return true, nil
 }
 
 // FetchPatterns retrieves the list of patterns from the server.

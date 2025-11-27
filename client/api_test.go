@@ -50,7 +50,7 @@ func TestFetchArchiveInvalidAPIKey(t *testing.T) {
 }
 
 func TestFetchClientVersion(t *testing.T) {
-	expected := ClientVersion{0, 3, 4}
+	expected := Version{0, 3, 4}
 	actual, err := FetchClientVersion()
 	if err != nil {
 		t.Errorf("FetchClientVersion returned error: %v", err)
@@ -261,5 +261,30 @@ func TestUpdateArchiveInvalidLevel(t *testing.T) {
 	}
 	if isUpdated {
 		t.Error("UpdateArchive function returned true for updated archive")
+	}
+}
+
+func TestFetchConfigNoNeedsUpdate(t *testing.T) {
+	config := Config{Version: "2099-01-01"}
+	isUpdated, err := FetchConfig(&config)
+	if err != nil {
+		t.Errorf("FetchConfig returned error: %v", err)
+	}
+	if isUpdated {
+		t.Error("FetchConfig function returned true for update status")
+	}
+}
+
+func TestFetchConfigNeedsUpdate(t *testing.T) {
+	config := Config{Version: "2000-01-01"}
+	isUpdated, err := FetchConfig(&config)
+	if err != nil {
+		t.Errorf("FetchConfig returned error: %v", err)
+	}
+	if !isUpdated {
+		t.Error("FetchConfig function returned false for update status")
+	}
+	if config.Version == "2000-01-01" {
+		t.Error("FetchConfig function did not update the config")
 	}
 }

@@ -1,6 +1,9 @@
 package client
 
-import "image"
+import (
+	"fmt"
+	"image"
+)
 
 // APIError represents an error returned by the API.
 type APIError struct {
@@ -41,30 +44,53 @@ type Archive struct {
 
 // Cache represents the local cache for songs and patterns.
 type Cache struct {
-	SongsLastModified    string    `json:"songsLastModified"`
-	PatternsLastModified string    `json:"patternsLastModified"`
+	SongsLastModified    string    `json:"Songs-Last-Modified"`
+	PatternsLastModified string    `json:"Patterns-Last-Modified"`
 	Songs                []Song    `json:"songs"`
 	Patterns             []Pattern `json:"patterns"`
 }
 
-// ClientVersion represents the version of the client.
-type ClientVersion struct {
-	Major int `json:"major"`
-	Minor int `json:"minor"`
-	Patch int `json:"patch"`
+// Version represents the general version of the client.
+type Version struct {
+	Major int `json:"major" yaml:"major"`
+	Minor int `json:"minor" yaml:"minor"`
+	Patch int `json:"patch" yaml:"patch"`
+}
+
+func (v Version) String() string {
+	return fmt.Sprintf("v%d.%d.%d", v.Major, v.Minor, v.Patch)
+}
+
+// Compare returns the result of comparing v with other.
+// If v is greater than other, it returns a positive number.
+// If v is equal to other, it returns 0.
+// If v is less than other, it returns a negative number.
+func (v Version) Compare(other Version) int {
+	if v.Major != other.Major {
+		return v.Major - other.Major
+	}
+	if v.Minor != other.Minor {
+		return v.Minor - other.Minor
+	}
+	return v.Patch - other.Patch
 }
 
 type Config struct {
-	Reference        Reference        `yaml:"reference" json:"reference"`
+	Version          string           `yaml:"version" json:"version"`
+	Reference        ScreenSize       `yaml:"reference" json:"reference"`
 	SpeedWidgetPHash string           `yaml:"speedWidgetPHash" json:"speedWidgetPHash"`
 	Configs          []ROIConfig      `yaml:"configs" json:"configs"`
 	DifficultyColors DifficultyColors `yaml:"difficultyColors" json:"difficultyColors"`
 	ColorTolerance   int              `yaml:"colorTolerance" json:"colorTolerance"`
 }
 
-type Reference struct {
+type ScreenSize struct {
 	Width  int `yaml:"width" json:"width"`
 	Height int `yaml:"height" json:"height"`
+}
+
+func (s ScreenSize) String() string {
+	return fmt.Sprintf("%dx%d", s.Width, s.Height)
 }
 
 type ROIConfig struct {
